@@ -7,18 +7,26 @@ var Id = null;
 var Password = null;
 var Address = null;
 
-var year = "2016";
-var semester = "Q2";
-// var year = (new Date()).getFullYear();
-// var month = (new Date()).getMonth() + 1;
-// var semester = "";
-// if (month >= 9 && month <=12) {
-//     semester = "Q1";
-// } else if (month >= 1 && month <= 3) {
-//     semester = "Q2";
-// } else if (month >= 4 && month <= 6) {
-//     semester = "Q3";
-// }
+/*
+Q1 = Fall, let’s assume Sep – Nov
+Q2 = Winter, let’s assume Dec – Feb
+Q3 = Spring, let’s assume Mar – May
+Q4 = Summer, let’s assume June – August
+*/
+
+var year = (new Date()).getFullYear();
+var month = (new Date()).getMonth() + 1;
+var semester = "";
+
+if (month >= 9 && month <=11) {
+    semester = "Q1";
+} else if (month >= 12 || month >= 1 && month <= 2) {
+    semester = "Q2";
+} else if (month >= 3 && month <= 5) {
+    semester = "Q3";
+} else if (month >= 6 && month <= 8){
+    semester = "Q4";
+}
 
 module.exports.start = function (menu, callback) {
     menu.resetMenu();
@@ -47,7 +55,7 @@ module.exports.studentMenu = function (menu, callback) {
         'Transcript',
         function() {
             console.log("\n===================TRANSCRIPT====================\n")
-            console.log("Welcome " + Name + "!\n");
+            console.log("Welcome " + Name + ", it's "+year+" semster "+semester+"!\n");
             modules.transcript(Id,function(result) {
                 if (result.length > 0) {
                     console.table(result);
@@ -98,6 +106,34 @@ module.exports.studentMenu = function (menu, callback) {
 
 
 module.exports.transcript = function(menu, callback) {
+    menu.resetMenu();
+    var message = "";
+    menu.addDelimiter('-', 40, 'Options')
+    .addItem(
+        'Course details ',
+        function(course_number) {
+           modules.courseInfo(course_number, Id, function(results) {
+               if (results.length < 1) {
+                   console.log("No Such Course");
+               } else {
+                   console.table(results);
+               }
+           });
+        },
+        null,
+        [{'name': 'course_number', 'type': 'string'}])
+    .addItem(
+        'Back to Student Menu',
+        function() {
+            goToStudentMenu(menu, callback);})
+    .addDelimiter('*', 40)
+    .customHeader(function() { 
+    }) 
+    .disableDefaultHeader();
+    callback(menu, message);
+}
+
+module.exports.enroll = function(menu, callback) {
     menu.resetMenu();
     var message = "";
     menu.addDelimiter('-', 40, 'Options')
@@ -199,7 +235,7 @@ function goToersonalDetailsMenu(menu, callback) {
         "password": "******"
     }];
     console.log("\n===================PERSONAL DETAILS====================\n");
-    console.log("Welcome " + Name + "!\n");
+    console.log("Welcome " + Name + ", it's "+year+" semster "+semester+"!\n");
     console.log("Personal Information:");
     console.table(personal_info);
     module.exports.personal_info(menu, callback);
@@ -207,7 +243,7 @@ function goToersonalDetailsMenu(menu, callback) {
 
 function goToStudentMenu(menu, callback) {
     console.log("\n===================STUDENT MENU====================\n")
-    console.log("Welcome " + Name + "!\n");
+    console.log("Welcome " + Name + ", it's "+year+" semster "+semester+"!\n");
     console.log("Currently Enrolled Courses:");
     modules.curtCourses(Id, year, semester, function(result) {
         if (result.length > 0) {
@@ -217,4 +253,25 @@ function goToStudentMenu(menu, callback) {
         }
         module.exports.studentMenu(menu, callback);
     });
+}
+
+function showClassesCanEnroll() {
+    
+}
+
+/*
+Q1 = Fall, let’s assume Sep – Nov
+Q2 = Winter, let’s assume Dec – Feb
+Q3 = Spring, let’s assume Mar – May
+Q4 = Summer, let’s assume June – August
+*/
+
+function nextSemester() {
+    if (semester == "Q1") {
+        return [year + 1, "Q2"];
+    } else if (semester == "Q2") {
+        return [year, "Q3"];
+    } else if (semester == "Q3") {
+        return [year, "Q4"];
+    }
 }
