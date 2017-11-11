@@ -20,8 +20,11 @@ preprocess.push("drop view if exists course_info;");
 preprocess.push("create view course_info as select a.UoSCode, c.UoSName, a.Year, a.Semester, a.Enrollment, a.MaxEnrollment, b.Name as Lecturer, c.Credits, d.PrereqUoSCode from uosoffering as a, faculty as b, unitofstudy as c, requires as d where a.InstructorId = b.Id and a.UoSCode = c.UoSCode and d.UoSCode = a.UoSCode;");
 //create procedures for show_available_courses
 preprocess.push("drop procedure if exists show_available_courses;");
-//preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct UoSCode as course_number, UoSName as course_namefrom, Year, Semester, Enrollment, MaxEnrollment, Lecturer from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
 preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct * from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
+//preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct UoSCode as course_number, UoSName as course_namefrom, Year, Semester, Enrollment, MaxEnrollment, Lecturer from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
+//insert new transcript record
+preprocess.push("drop procedure if exists enroll;");
+preprocess.push("create procedure enroll(in studid char(20), in course_id char(20), in semester char(20), in year char(20)) insert into transcript values(StudId, course_id, semester, year, null);");
 
 for (var i = 0; i < preprocess.length; i++) {
     var sql = preprocess[i];
@@ -54,7 +57,7 @@ module.exports.curtCourses = function (id, year, semester, callback) {
 //need student id
 module.exports.transcript = function (id, callback) { 
     var sql = "select * from  student_course where Id = \"" + id + "\" order by Year DESC";    
-    console.log(sql);
+    //console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
         callback(result);
@@ -106,7 +109,16 @@ module.exports.changeAdd = function (Id, new_address, callback) {
 //need student id, course id
 module.exports.getAvailableCourses = function (id, year, semester, nextYear, nextSemester, callback) { 
     var sql = "call show_available_courses(\""+id+"\", \""+year+"\", \""+semester+"\", \""+nextYear+"\", \""+nextSemester+"\");";
-    console.log(sql);
+    //console.log(sql);
+    con.query(sql, function (err, result, fields) {
+        if (err) throw err;
+        callback(result);
+    });
+};
+
+module.exports.enroll = function (id, course_number,semester, year, callback) { 
+    var sql = "call enroll(\""+id+"\", \""+course_number+"\", \""+semester+"\", \""+year+"\");";
+    //console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
         callback(result);

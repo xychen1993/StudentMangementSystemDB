@@ -64,3 +64,13 @@ module.exports.getAvailableCourses = function(id, year, semester, nextYear, next
         callback(json[0]);
     });
 };
+
+module.exports.enroll = function(id, course_number,semester, year, callback) {
+    db.enroll(id, course_number,semester, year, function(result) {
+        var json = JSON.parse(JSON.stringify(result));
+        //console.log(json.length);
+        //console.log("enter modules");
+        callback(json);
+    });
+};
+

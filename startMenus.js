@@ -32,7 +32,9 @@ if (month >= 9 && month <=11) {
 //get data from database
 var all_transcript = null;
 var available_courses_enroll = null;
-var can_select = null;
+var if_can_not_select_reasons = {};
+var can_select = {};
+var course_passed = {};
 module.exports.start = function (menu, callback) {
     module.exports.login(menu, callback);
 }
@@ -76,6 +78,7 @@ module.exports.studentMenu = function (menu, callback) {
             console.log("\n===================Enroll====================\n");
             showWelcome();
             showAvailableCourses();
+            module.exports.enroll(menu, callback);
         })
     .addItem(
         'Withdraw',
@@ -139,15 +142,9 @@ module.exports.enroll = function(menu, callback) {
     var message = "";
     menu.addDelimiter('-', 40, 'Options')
     .addItem(
-        'Course details ',
+        'Enroll ',
         function(course_number) {
-           modules.courseInfo(course_number, Id, function(results) {
-               if (results.length < 1) {
-                   console.log("No Such Course");
-               } else {
-                   console.table(results);
-               }
-           });
+           enroll_course(course_number, menu, callback);
         },
         null,
         [{'name': 'course_number', 'type': 'string'}])
@@ -214,12 +211,7 @@ function loginAndGetInfo(username, pwd, method, callback) {
             Id = result[0].Id;
             Password = result[0].Password;
             Address = result[0].Address;
-            getTranscripts(function(result) {
-                all_transcript = result;
-                getAvailableCourses(function(result) {
-                    available_courses_enroll = result;
-                });
-            });
+            getInitialData();
             if (method == "login") {
                 goToStudentMenu(menu, callback);
             } else if (method == "update") {
@@ -233,7 +225,14 @@ function loginAndGetInfo(username, pwd, method, callback) {
         }
     });
 }
-
+function getInitialData() {
+    getTranscripts(function(result) {
+        all_transcript = result;
+        getAvailableCourses(function(result) {
+            available_courses_enroll = result;
+        });
+    });
+}
 function goToersonalDetailsMenu(menu, callback) {
     var personal_info = [{
         "student_id": Id,
@@ -287,7 +286,8 @@ function getAvailableCourses(callback) {
 /*
 var all_transcript = null;
 var available_courses_enroll = null;
-var can_select = null;
+var if_can_not_select_reasons = {};
+var course_passed = {};
 */
 function showAvailableCourses() {
     if (available_courses_enroll == null) {
@@ -295,24 +295,39 @@ function showAvailableCourses() {
     } else {
         //console.log(available_courses_enroll);
         var courses_enroll_to_show = [];
-        var course_passed = {};
+        course_passed = {};
         for (var i = 0; i < all_transcript.length; i++) {
             var course = all_transcript[i];
-            console.log(course);
             if (course.Grade == 'D' || course.Grade == 'CR' || course.Grade == 'P') {
-                course_passed[course.UoSCode] = ""
+                course_passed[course.UoSCode] = true;
+            } else {
+                course_passed[course.UoSCode] = false;
             }
         }
+        if_can_not_select_reasons = {};
         for (var i = 0; i < available_courses_enroll.length; i++) {
             var item = JSON.parse(JSON.stringify(available_courses_enroll[i]));
-            // if (item.Enrollment >= MaxEnrollment) {
-            // }
+            var course_id = item.UoSCode;
+            if (!if_can_not_select_reasons[course_id]) {
+                if_can_not_select_reasons[course_id] = [];
+            }
+            if (course_id in course_passed) {
+                if_can_not_select_reasons[course_id].push("You already finished this course!");
+            }
+            if (!course_passed[item.PrereqUoSCode]) {
+                if_can_not_select_reasons[course_id].push("Please finish pre-requisite(course "+ item.PrereqUoSCode +") first!");
+            } 
+            if (item.Enrollment >= item.MaxEnrollment) {
+                if_can_not_select_reasons[course_id].push("Exceed Maximum Enrollment!");
+            }
             delete item.PrereqUoSCode;
             delete item.Credits;
-            
             courses_enroll_to_show.push(item)
         }
         console.table(courses_enroll_to_show);
+        // console.log(if_can_not_select_reasons);
+        // console.table(available_courses_enroll);
+        
     }
 }
 
@@ -331,4 +346,22 @@ function getNextSemester() {
     } else if (semester == "Q3") {
         return [year, "Q4"];
     }
+}
+
+function enroll_course(course_id, menu, callback) {
+    if (!(course_id in if_can_not_select_reasons)) {
+        console.log("No available course "+ course_id +"!");
+    } else {
+        if (if_can_not_select_reasons[course_id] != 0) {
+            for (var i = 0; i < if_can_not_select_reasons[course_id].length; i++) {
+                console.log(if_can_not_select_reasons[course_id][i]);
+            }
+        } else {
+            modules.enroll(Id, course_id,semester, year, function(result){
+                console.log("Enroll "+course_number+" success!");
+            })
+        }
+    }
+    getInitialData();
+    module.exports.enroll(menu, callback);
 }
