@@ -11,16 +11,20 @@ con.connect(function(err) {
     if (err) throw err;
 });
 
-var views = [];
+var preprocess = [];
 //view1: student_course
-views.push("Drop view if exists student_course;");
-views.push("create view student_course as select a.Id as Id, a.Name as Name, b.UoSCode as UoSCode, b.Semester as Semester, b.Year as Year, b.Grade as Grade, c.UoSName as UoSName from student as a, transcript as b, unitofstudy as c where a.Id = b.StudId and c.UoSCode = b.UoSCode;");
+preprocess.push("Drop view if exists student_course;");
+preprocess.push("create view student_course as select a.Id as Id, a.Name as Name, b.UoSCode as UoSCode, b.Semester as Semester, b.Year as Year, b.Grade as Grade, c.UoSName as UoSName from student as a, transcript as b, unitofstudy as c where a.Id = b.StudId and c.UoSCode = b.UoSCode;");
 //view2: course_info
-views.push("drop view if exists course_info;");
-views.push("create view course_info as select * from uosoffering, faculty where uosoffering.InstructorId = faculty.Id;");
-//views.push("select distinct * from student_course;");
-for (var i = 0; i < views.length; i++) {
-    var sql = views[i];
+preprocess.push("drop view if exists course_info;");
+preprocess.push("create view course_info as select a.UoSCode, c.UoSName, a.Year, a.Semester, a.Enrollment, a.MaxEnrollment, b.Name as Lecturer, c.Credits, d.PrereqUoSCode from uosoffering as a, faculty as b, unitofstudy as c, requires as d where a.InstructorId = b.Id and a.UoSCode = c.UoSCode and d.UoSCode = a.UoSCode;");
+//create procedures for show_available_courses
+preprocess.push("drop procedure if exists show_available_courses;");
+//preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct UoSCode as course_number, UoSName as course_namefrom, Year, Semester, Enrollment, MaxEnrollment, Lecturer from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
+preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct * from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
+
+for (var i = 0; i < preprocess.length; i++) {
+    var sql = preprocess[i];
 //    console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
@@ -38,7 +42,7 @@ module.exports.login = function (username, pwd, callback) {
 };
 //Need student id, year and semester!
 module.exports.curtCourses = function (id, year, semester, callback) { 
-    var sql = "select UoSCode as course_number, UoSName as course_name, year, semester, grade from student_course where Id = \"" + id + "\" and Grade is NULL and year = \""+ year +"\" and semester = \""+semester+"\";";    
+    var sql = "select UoSCode as course_number, UoSName as course_name, year, semester, grade from student_course where Id = \"" + id + "\" and year = \""+ year +"\" and semester = \""+semester+"\";";    
     //var sql = "select * from  student_course where Id = \"" + id + "\" and Year = \"" + year + "\" and Semester = \"" + semester + "\" and Grade is  NULL;";
     //console.log(sql);
     con.query(sql, function (err, result, fields) {
@@ -50,7 +54,7 @@ module.exports.curtCourses = function (id, year, semester, callback) {
 //need student id
 module.exports.transcript = function (id, callback) { 
     var sql = "select * from  student_course where Id = \"" + id + "\" order by Year DESC";    
-    //console.log(sql);
+    console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
         callback(result);
@@ -60,7 +64,7 @@ module.exports.transcript = function (id, callback) {
 
 //need student id, course id
 module.exports.courseInfo = function (course_number, id, callback) { 
-    var sql = "select distinct a.UoSCode as course_number, a.UoSName as course_name, a.Year, a.Semester, b.Enrollment, b.maxEnrollment, b.Name as lecturer, a.Grade from student_course as a, course_info as b where a.UoSCode = b.UoSCode and a.year = b.year and a.semester = b.semester and a.Id = \""+ id +"\" and b.UoSCode = \""+ course_number +"\";";    
+    var sql = "select distinct a.UoSCode as course_number, a.UoSName as course_name, a.Year, a.Semester, b.Enrollment, b.maxEnrollment, lecturer, a.Grade from student_course as a, course_info as b where a.UoSCode = b.UoSCode and a.year = b.year and a.semester = b.semester and a.Id = \""+ id +"\" and b.UoSCode = \""+ course_number +"\";";    
     //console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
@@ -92,6 +96,16 @@ module.exports.changePwd = function (id, old_pwd, new_pwd, callback) {
 //need student id, course id
 module.exports.changeAdd = function (Id, new_address, callback) { 
     var sql = "update student set Address = \""+ new_address +"\" where Id = \""+Id+"\";"
+    //console.log(sql);
+    con.query(sql, function (err, result, fields) {
+        if (err) throw err;
+        callback(result);
+    });
+};
+
+//need student id, course id
+module.exports.getAvailableCourses = function (id, year, semester, nextYear, nextSemester, callback) { 
+    var sql = "call show_available_courses(\""+id+"\", \""+year+"\", \""+semester+"\", \""+nextYear+"\", \""+nextSemester+"\");";
     console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;

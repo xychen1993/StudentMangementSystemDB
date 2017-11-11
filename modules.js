@@ -55,3 +55,12 @@ module.exports.changeAdd = function(Id, new_address, callback) {
         callback(result);
     });
 };
+
+module.exports.getAvailableCourses = function(id, year, semester, nextYear, nextSemester, callback) {
+    db.getAvailableCourses(id, year, semester, nextYear, nextSemester, function(result) {
+        var json = JSON.parse(JSON.stringify(result));
+        //console.log(json.length);
+        //console.log("enter modules");
+        callback(json[0]);
+    });
+};
