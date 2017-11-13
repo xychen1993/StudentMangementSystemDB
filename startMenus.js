@@ -443,7 +443,9 @@ function withdraw_course(course_number, course_semester , course_year, menu, cal
         //console.log(enrolled_course_info,course_number+course_year+course_semester);
         var info = enrolled_course_info[course_number+course_year+course_semester];
         //console.log("info:",info);
+        console.log("Drop success!");
         if (info.enrollment * 2 < info.max_enrollment) {
+            
             console.log("Alert: Enrollment of Course "+course_number+" is Less than 50%!");
         }
         showCourseEnrolledWithdraw(menu, callback);
