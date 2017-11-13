@@ -74,3 +74,12 @@ module.exports.enroll = function(id, course_number,semester, year, callback) {
     });
 };
 
+module.exports.withdraw = function(id, course_number,semester, year, callback) {
+    db.withdraw(id, course_number,semester, year,function(result) {
+        var json = JSON.parse(JSON.stringify(result));
+        //console.log(json.length);
+        //console.log("enter modules");
+        callback(json);
+    });
+};
+

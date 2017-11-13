@@ -14,17 +14,23 @@ con.connect(function(err) {
 var preprocess = [];
 //view1: student_course
 preprocess.push("Drop view if exists student_course;");
-preprocess.push("create view student_course as select a.Id as Id, a.Name as Name, b.UoSCode as UoSCode, b.Semester as Semester, b.Year as Year, b.Grade as Grade, c.UoSName as UoSName from student as a, transcript as b, unitofstudy as c where a.Id = b.StudId and c.UoSCode = b.UoSCode;");
+preprocess.push("create view student_course as select a.Id as Id, a.Name as Name, b.UoSCode as UoSCode, b.Semester as Semester, b.Year as Year, b.Grade as Grade, c.UoSName as UoSName, d.Enrollment, d.MaxEnrollment from student as a, transcript as b, unitofstudy as c, uosoffering as d where a.Id = b.StudId and c.UoSCode = b.UoSCode and d.UoSCode = b.UoSCode and d.Year = b.Year and d.Semester = b.Semester;");
 //view2: course_info
 preprocess.push("drop view if exists course_info;");
 preprocess.push("create view course_info as select a.UoSCode, c.UoSName, a.Year, a.Semester, a.Enrollment, a.MaxEnrollment, b.Name as Lecturer, c.Credits, d.PrereqUoSCode from uosoffering as a, faculty as b, unitofstudy as c, requires as d where a.InstructorId = b.Id and a.UoSCode = c.UoSCode and d.UoSCode = a.UoSCode;");
 //create procedures for show_available_courses
 preprocess.push("drop procedure if exists show_available_courses;");
-preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct * from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
+preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct * from course_info where course_info.UoSCode not in (select UoSCode from transcript where studid = studid) and ((Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester)) order by year;");
 //preprocess.push("create procedure show_available_courses (in studid char(20), in curt_year char(20), in curt_semester char(20),in next_year char(20), in next_semester char(20)) select distinct UoSCode as course_number, UoSName as course_namefrom, Year, Semester, Enrollment, MaxEnrollment, Lecturer from course_info where (Year = curt_year and Semester = curt_semester) or (Year = next_year and semester = next_semester) and UoSCode not in (select UoSCode from student_course where Id = studid) order by year;");
 //insert new transcript record
 preprocess.push("drop procedure if exists enroll;");
 preprocess.push("create procedure enroll(in studid char(20), in course_id char(20), in semester char(20), in year char(20)) insert into transcript values(StudId, course_id, semester, year, null);");
+//update enrollment
+preprocess.push("drop procedure if exists update_enrollment;");
+preprocess.push("create procedure update_enrollment(in course_id char(20), in semester char(20), in year char(20), in amount int) update uosoffering set Enrollment = Enrollment + amount where UoSCode = course_id and Year = year and Semester = semester;");
+//withdraw class
+preprocess.push("drop procedure if exists withdraw;");
+preprocess.push("create procedure withdraw(in stud_id char(20), in course_id char(20), in course_semester char(20), in course_year char(20)) delete from transcript where StudId = stud_id and UoSCode = course_id and Semester = course_semester and Year = course_year;");
 
 for (var i = 0; i < preprocess.length; i++) {
     var sql = preprocess[i];
@@ -118,9 +124,26 @@ module.exports.getAvailableCourses = function (id, year, semester, nextYear, nex
 
 module.exports.enroll = function (id, course_number,semester, year, callback) { 
     var sql = "call enroll(\""+id+"\", \""+course_number+"\", \""+semester+"\", \""+year+"\");";
+    console.log(sql);
+    con.query(sql, function (err, result, fields) {
+        if (err) throw err;
+        var sql2 = "call update_enrollment(\""+course_number+"\", \""+semester+"\", \""+year+"\", 1);";
+        con.query(sql2, function (err, result, fields) {
+            if (err) throw err;            
+            callback(result);
+        });
+    });
+};
+
+module.exports.withdraw = function (id, course_number,semester, year, callback) { 
+    var sql = "call withdraw(\""+id+"\", \""+course_number+"\", \""+semester+"\", \""+year+"\");";
     //console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
-        callback(result);
+        var sql2 = "call update_enrollment(\""+course_number+"\", \""+semester+"\", \""+year+"\", -1);";
+        con.query(sql2, function (err, result, fields) {
+            if (err) throw err;            
+            callback(result);
+        });
     });
 };

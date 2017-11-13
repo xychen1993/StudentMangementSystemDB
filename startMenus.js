@@ -28,6 +28,10 @@ if (month >= 9 && month <=11) {
     semester = "Q4";
 }
 
+var next = getNextSemester();
+var nextYear = next[0];
+var nextSemester = next[1];
+
 
 //get data from database
 var all_transcript = null;
@@ -35,6 +39,7 @@ var available_courses_enroll = null;
 var if_can_not_select_reasons = {};
 var can_select = {};
 var course_passed = {};
+var enrolled_course_info = {};
 module.exports.start = function (menu, callback) {
     module.exports.login(menu, callback);
 }
@@ -83,13 +88,7 @@ module.exports.studentMenu = function (menu, callback) {
     .addItem(
         'Withdraw',
         function() {
-            modules.curtCourses(Id, year, semester, function(result) {
-                if (result.length > 0) {
-                    console.table(result);
-                } else {
-                    console.log("No Course Enrolled");
-                }
-            });
+            showCourseEnrolledWithdraw(menu, callback);
         })
     .addItem(
         'Personal Details',
@@ -143,11 +142,37 @@ module.exports.enroll = function(menu, callback) {
     menu.addDelimiter('-', 40, 'Options')
     .addItem(
         'Enroll ',
-        function(course_number) {
-           enroll_course(course_number, menu, callback);
+        function(course_number, course_year, course_semester) {
+           enroll_course(course_number, course_semester, course_year, menu, callback);
         },
         null,
-        [{'name': 'course_number', 'type': 'string'}])
+        [{'name': 'course_number', 'type': 'string'},
+         {'name': 'course_year', 'type': 'string'},
+         {'name': 'course_semester', 'type': 'string'}])
+    .addItem(
+        'Back to Student Menu',
+        function() {
+            goToStudentMenu(menu, callback);})
+    .addDelimiter('*', 40)
+    .customHeader(function() { 
+    }) 
+    .disableDefaultHeader();
+    callback(menu, message);
+}
+
+module.exports.withdraw = function(menu, callback) {
+    menu.resetMenu();
+    var message = "";
+    menu.addDelimiter('-', 40, 'Options')
+    .addItem(
+        'Withdraw ',
+        function(course_number, course_year, course_semester) {
+            withdraw_course(course_number, course_semester, course_year, menu, callback);
+        },
+        null,
+        [{'name': 'course_number', 'type': 'string'},
+         {'name': 'course_year', 'type': 'string'},
+         {'name': 'course_semester', 'type': 'string'}])
     .addItem(
         'Back to Student Menu',
         function() {
@@ -226,8 +251,18 @@ function loginAndGetInfo(username, pwd, method, callback) {
     });
 }
 function getInitialData() {
+    enrolled_course_info = {};
     getTranscripts(function(result) {
         all_transcript = result;
+        for (var i = 0; i < all_transcript.length; i++) {
+            var item = all_transcript[i];
+            enrolled_course_info[item.UoSCode+item.Year+item.Semester] = {
+                'enrollment' : item.Enrollment,
+                'max_enrollment' : item.MaxEnrollment
+            };
+        }
+        //console.log(all_transcript);
+        //console.log(enrolled_course_info);
         getAvailableCourses(function(result) {
             available_courses_enroll = result;
         });
@@ -247,6 +282,28 @@ function goToersonalDetailsMenu(menu, callback) {
     module.exports.personal_info(menu, callback);
 }
 
+function showCourseEnrolledWithdraw(menu, callback) {
+    console.log("\n===================Withdraw====================\n")
+    showWelcome();
+    console.log("Currently Enrolled Courses:");
+    modules.curtCourses(Id, year, semester, function(result) {
+        if (result.length > 0) {       
+            console.table(result);
+            console.log("\nNext Semster Enrolled Courses: ");
+            modules.curtCourses(Id, nextYear, nextSemester, function(result) {
+                if (result.length > 0) {
+                    console.table(result);
+                } else {
+                    console.log("No Course Enrolled");
+                }
+                module.exports.withdraw(menu, callback);
+            });
+        } else {
+            console.log("No Course Enrolled");
+        }
+    });
+}
+
 function goToStudentMenu(menu, callback) {
     console.log("\n===================STUDENT MENU====================\n")
     showWelcome();
@@ -254,10 +311,19 @@ function goToStudentMenu(menu, callback) {
     modules.curtCourses(Id, year, semester, function(result) {
         if (result.length > 0) {       
             console.table(result);
+            console.log("\nNext Semster Enrolled Courses: ");
+            modules.curtCourses(Id, nextYear, nextSemester, function(result) {
+                if (result.length > 0) {
+                    console.table(result);
+                } else {
+                    console.log("No Course Enrolled");
+                }
+                module.exports.studentMenu(menu, callback);
+            });
         } else {
             console.log("No Course Enrolled");
         }
-        module.exports.studentMenu(menu, callback);
+        
     });
 }
 
@@ -274,9 +340,6 @@ function getTranscripts(callback) {
 }
 
 function getAvailableCourses(callback) {
-    var next = getNextSemester();
-    var nextYear = next[0];
-    var nextSemester = next[1];
     //console.log(nextYear, nextSemester);
     modules.getAvailableCourses(Id, year, semester, nextYear, nextSemester, function(result) {
         callback(result);
@@ -288,6 +351,7 @@ var all_transcript = null;
 var available_courses_enroll = null;
 var if_can_not_select_reasons = {};
 var course_passed = {};
+var course_info = {};
 */
 function showAvailableCourses() {
     if (available_courses_enroll == null) {
@@ -308,6 +372,7 @@ function showAvailableCourses() {
         for (var i = 0; i < available_courses_enroll.length; i++) {
             var item = JSON.parse(JSON.stringify(available_courses_enroll[i]));
             var course_id = item.UoSCode;
+            
             if (!if_can_not_select_reasons[course_id]) {
                 if_can_not_select_reasons[course_id] = [];
             }
@@ -327,7 +392,6 @@ function showAvailableCourses() {
         console.table(courses_enroll_to_show);
         // console.log(if_can_not_select_reasons);
         // console.table(available_courses_enroll);
-        
     }
 }
 
@@ -337,7 +401,6 @@ Q2 = Winter, let’s assume Dec – Feb
 Q3 = Spring, let’s assume Mar – May
 Q4 = Summer, let’s assume June – August
 */
-
 function getNextSemester() {
     if (semester == "Q1") {
         return [year + 1, "Q2"];
@@ -348,7 +411,7 @@ function getNextSemester() {
     }
 }
 
-function enroll_course(course_id, menu, callback) {
+function enroll_course(course_id, course_semester, course_year, menu, callback) {
     if (!(course_id in if_can_not_select_reasons)) {
         console.log("No available course "+ course_id +"!");
     } else {
@@ -357,11 +420,24 @@ function enroll_course(course_id, menu, callback) {
                 console.log(if_can_not_select_reasons[course_id][i]);
             }
         } else {
-            modules.enroll(Id, course_id,semester, year, function(result){
-                console.log("Enroll "+course_number+" success!");
+            modules.enroll(Id, course_id, course_semester, course_year, function(result){
+                console.log("Enroll "+course_id+" success!");
             })
         }
     }
     getInitialData();
     module.exports.enroll(menu, callback);
+}
+
+
+function withdraw_course(course_number, course_semester , course_year, menu, callback) {
+    modules.withdraw(Id, course_number,course_semester, course_year, function(result) {
+        //console.log(enrolled_course_info,course_number+course_year+course_semester);
+        var info = enrolled_course_info[course_number+course_year+course_semester];
+        //console.log("info:",info);
+        if (info.enrollment * 2 < info.max_enrollment) {
+            console.log("Alert: Enrollment of Course "+course_number+" is Less than 50%!");
+        }
+        showCourseEnrolledWithdraw(menu, callback);
+    });
 }
