@@ -62,7 +62,7 @@ module.exports.curtCourses = function (id, year, semester, callback) {
 
 //need student id
 module.exports.transcript = function (id, callback) { 
-    var sql = "select * from  student_course where Id = \"" + id + "\" order by Year DESC";    
+    var sql = "select * from student_course where Id = \"" + id + "\" order by Year DESC";    
     //console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
@@ -124,7 +124,7 @@ module.exports.getAvailableCourses = function (id, year, semester, nextYear, nex
 
 module.exports.enroll = function (id, course_number,semester, year, callback) { 
     var sql = "call enroll(\""+id+"\", \""+course_number+"\", \""+semester+"\", \""+year+"\");";
-    console.log(sql);
+   // console.log(sql);
     con.query(sql, function (err, result, fields) {
         if (err) throw err;
         var sql2 = "call update_enrollment(\""+course_number+"\", \""+semester+"\", \""+year+"\", 1);";

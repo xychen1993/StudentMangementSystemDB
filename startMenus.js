@@ -40,6 +40,7 @@ var if_can_not_select_reasons = {};
 var can_select = {};
 var course_passed = {};
 var enrolled_course_info = {};
+all_transcript_to_show = [];
 module.exports.start = function (menu, callback) {
     module.exports.login(menu, callback);
 }
@@ -73,7 +74,8 @@ module.exports.studentMenu = function (menu, callback) {
         function() {
             console.log("\n===================TRANSCRIPT====================\n");
             showWelcome();
-            console.table(all_transcript);
+            console.log("Your transcript: ");
+            console.table(all_transcript_to_show);
             module.exports.transcript(menu, callback);
             
         })
@@ -252,14 +254,20 @@ function loginAndGetInfo(username, pwd, method, callback) {
 }
 function getInitialData() {
     enrolled_course_info = {};
+    all_transcript_to_show = [];
     getTranscripts(function(result) {
         all_transcript = result;
         for (var i = 0; i < all_transcript.length; i++) {
-            var item = all_transcript[i];
+            var item = JSON.parse(JSON.stringify(all_transcript[i]));
             enrolled_course_info[item.UoSCode+item.Year+item.Semester] = {
                 'enrollment' : item.Enrollment,
                 'max_enrollment' : item.MaxEnrollment
             };
+            delete item.Enrollment;
+            delete item.MaxEnrollment;
+            delete item.Id;
+            delete item.Name;
+            all_transcript_to_show.push(item);
         }
         //console.log(all_transcript);
         //console.log(enrolled_course_info);
